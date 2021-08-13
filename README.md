@@ -11,6 +11,7 @@
 * api.example.com set necessasry cookies for authenticated users.
 
 * Front end now can access protected apis.
+* Use https://github.com/namgk/api-gateway-authorizer as the authorizer.
 
 ## Usage
 
