@@ -5,12 +5,22 @@ import querystring from 'querystring';
 const apps = JSON.parse(process.env.apps);
 
 const asyncHandler = async (event) => {
-  const { queryStringParameters, requestContext, rawPath } = event;
+  console.log(event)
+  let { queryStringParameters, multiValueQueryStringParameters, requestContext, rawPath, multiValueHeaders, path } = event;
 
-  const { code, logout: lo, refresh } = queryStringParameters;
-  const { domainName, domainPrefix } = requestContext;
+  let { code, logout: lo, refresh } = queryStringParameters || multiValueQueryStringParameters;
+  let { domainName, elb } = requestContext;
+  
+  if (elb) {
+    const { host } = multiValueHeaders;
+    domainName = host[0];
+    rawPath = path;
+    code = code ? code[0] : null;
+    lo = lo ? lo[0]: null;
+    refresh = refresh ? refresh[0] : null;
+  }
 
-  const APP_DOMAIN = domainName.substring(domainPrefix.length + 1);
+  const APP_DOMAIN = domainName.substring(domainName.indexOf('.') + 1);
 
   const COGNITO_CLIENT_ID = apps[APP_DOMAIN].cognitoId;
   const COGNITO_CLIENT_SECRET = apps[APP_DOMAIN].cognitoSecret;
@@ -29,7 +39,13 @@ const asyncHandler = async (event) => {
 
   const COGNITO_TOKEN_ENDPOINT = `${COGNITO_ENDPOINT}/oauth2/token`
 
-  const login = {
+  const login = elb ? {
+    statusCode: 307,
+    statusDescription: 'Found',
+    multiValueHeaders: {
+      location: [COGNITO_LOGIN_URL],
+    }
+  } : {
     statusCode: 307,
     statusDescription: 'Found',
     headers: {
@@ -37,7 +53,13 @@ const asyncHandler = async (event) => {
     }
   };
 
-  const logout = {
+  const logout = elb ? {
+    statusCode: 307,
+    multiValueHeaders: {
+      location: [COGNITO_LOGOUT_URL],
+      "Set-Cookie": [`refresh_token=deleted; expires=${new Date(0).toUTCString()}`, `id_token=deleted; expires=${new Date(0).toUTCString()}`, `access_token=deleted; expires=${new Date(0).toUTCString()}`]
+    }
+  }: {
     statusCode: 307,
     cookies: [`refresh_token=deleted; expires=${new Date(0).toUTCString()}`, `id_token=deleted; expires=${new Date(0).toUTCString()}`, `access_token=deleted; expires=${new Date(0).toUTCString()}`],
     headers: {
@@ -88,17 +110,29 @@ const asyncHandler = async (event) => {
     return login;
   }
   
+  console.log(result);
   const { id_token, access_token, refresh_token } = result;
 
   if (!id_token || !access_token){
-    console.log("invalid cognito code");
+    console.log("invalid auth code");
     return login;
   }
 
-  const cookies = [`id_token=${id_token}; Secure; HttpOnly`, `access_token=${access_token}; Secure; HttpOnly`]
+  const cookies = [`id_token=${id_token}; Domain=${APP_DOMAIN}; Secure; HttpOnly`, `access_token=${access_token}; Domain=${APP_DOMAIN}; Secure; HttpOnly`]
 
   if (refresh_token){
     cookies.push(`refresh_token=${refresh_token}; Secure; HttpOnly`);
+  }
+
+  if (elb){
+    return {
+      isBase64Encoded: false,
+      statusCode: 307,
+      multiValueHeaders: {
+        location: [`https://${APP_DOMAIN}`],
+        "Set-Cookie": cookies
+      }
+    }
   }
 
   // set id_token as cookie
