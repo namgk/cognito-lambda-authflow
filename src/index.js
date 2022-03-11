@@ -57,11 +57,11 @@ const asyncHandler = async (event) => {
     statusCode: 307,
     multiValueHeaders: {
       location: [COGNITO_LOGOUT_URL],
-      "Set-Cookie": [`refresh_token=deleted; expires=${new Date(0).toUTCString()}`, `id_token=deleted; expires=${new Date(0).toUTCString()}`, `access_token=deleted; expires=${new Date(0).toUTCString()}`]
+      "Set-Cookie": [`refresh_token=deleted; Domain=${APP_DOMAIN}; expires=${new Date(0).toUTCString()}`, `id_token=deleted; Domain=${APP_DOMAIN}; expires=${new Date(0).toUTCString()}`, `access_token=deleted; expires=${new Date(0).toUTCString()}`]
     }
   }: {
     statusCode: 307,
-    cookies: [`refresh_token=deleted; expires=${new Date(0).toUTCString()}`, `id_token=deleted; expires=${new Date(0).toUTCString()}`, `access_token=deleted; expires=${new Date(0).toUTCString()}`],
+    cookies: [`refresh_token=deleted; Domain=${APP_DOMAIN}; expires=${new Date(0).toUTCString()}`, `id_token=deleted; Domain=${APP_DOMAIN}; expires=${new Date(0).toUTCString()}`, `access_token=deleted; expires=${new Date(0).toUTCString()}`],
     headers: {
       location: COGNITO_LOGOUT_URL,
     }
@@ -121,7 +121,7 @@ const asyncHandler = async (event) => {
   const cookies = [`id_token=${id_token}; Domain=${APP_DOMAIN}; Secure; HttpOnly`, `access_token=${access_token}; Domain=${APP_DOMAIN}; Secure; HttpOnly`]
 
   if (refresh_token){
-    cookies.push(`refresh_token=${refresh_token}; Secure; HttpOnly`);
+    cookies.push(`refresh_token=${refresh_token}; Domain=${APP_DOMAIN}; Secure; HttpOnly`);
   }
 
   if (elb){
